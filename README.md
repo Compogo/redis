@@ -1,14 +1,20 @@
-# Compogo Redis 🗄️
+# Compogo Redis
 
-**Compogo Redis** — это полноценный Redis-клиент для Compogo, построенный поверх официальной библиотеки [go-redis](https://github.com/redis/go-redis). Предоставляет полный доступ ко всем командам Redis через интерфейс `redis.Cmdable`, настраивается через флаги и может использоваться как самостоятельный клиент или как драйвер для централизованной системы кэширования [Compogo Cache](https://github.com/Compogo/cache).
+Адаптер [Redis](https://redis.io/) для фреймворка [Compogo](https://github.com/Compogo/compogo).
 
-## 🚀 Установка
+На основе [go-redis](https://github.com/redis/go-redis) предоставляет:
 
-```bash
+* Клиент для работы с Redis
+* Настройку через DSN (Data Source Name)
+* Интеграцию с compogo-cache как драйвер
+
+## Установка
+
+```shell
 go get github.com/Compogo/redis
 ```
 
-### 📦 Быстрый старт
+## Быстрый старт
 
 ```go
 package main
@@ -16,123 +22,87 @@ package main
 import (
     "context"
     "github.com/Compogo/compogo"
-    "github.com/Compogo/redis"
+    compogoRedis "github.com/Compogo/redis"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
     app := compogo.NewApp("myapp",
-        compogo.WithOsSignalCloser(),
-        redis.Component,  // добавляем Redis-клиент
-        compogo.WithComponents(
-            userServiceComponent,
-        ),
+        compogo.WithComponents(&compogoRedis.Component),
     )
+
+    app.AddComponents(&compogo.Component{
+        Name: "my_service",
+        Init: compogo.StepFunc(func(container compogo.Container) error {
+            return container.Invoke(func(client *redis.Client) error {
+                ctx := context.Background()
+                return client.Set(ctx, "key", "value", 0).Err()
+            })
+        }),
+    })
 
     if err := app.Serve(); err != nil {
         panic(err)
     }
 }
-
-// Использование в сервисе
-var userServiceComponent = &component.Component{
-    Dependencies: component.Components{redis.Component},
-    Execute: component.StepFunc(func(c container.Container) error {
-        return c.Invoke(func(redis redis.Cmdable) {
-            service := &UserService{redis: redis}
-            service.Start()
-        })
-    }),
-}
-
-type UserService struct {
-    redis redis.Cmdable
-}
-
-func (s *UserService) GetUser(ctx context.Context, id int) (*User, error) {
-    // Пытаемся достать из Redis
-    data, err := s.redis.Get(ctx, fmt.Sprintf("user:%d", id)).Bytes()
-    if err == nil {
-        var user User
-        json.Unmarshal(data, &user)
-        return &user, nil
-    }
-    
-    // Нет в кэше — грузим из БД
-    user, err := s.db.LoadUser(id)
-    if err != nil {
-        return nil, err
-    }
-    
-    // Кладём в Redis
-    data, _ = json.Marshal(user)
-    s.redis.Set(ctx, fmt.Sprintf("user:%d", id), data, 5*time.Minute)
-    
-    return user, nil
-}
 ```
 
-### ✨ Возможности
+## Конфигурация через DSN
 
-#### 🎯 Полный API Redis через redis.Cmdable
+```shell
+# Базовый формат
+--cache.redis.dsn=redis://localhost:6379/0
 
-Интерфейс `Cmdable` содержит все команды Redis — более 200 методов:
+# С аутентификацией
+--cache.redis.dsn=redis://user:pass@localhost:6379/0
 
-```go
-// Строки
-redis.Set(ctx, "key", "value", time.Hour)
-val, err := redis.Get(ctx, "key").Result()
-
-// Хеши
-redis.HSet(ctx, "user:1", "name", "Alice")
-redis.HGetAll(ctx, "user:1").Result()
-
-// Списки
-redis.LPush(ctx, "queue", "task1")
-redis.BRPop(ctx, 0, "queue").Result()
-
-// Множества
-redis.SAdd(ctx, "tags", "go", "redis")
-redis.SMembers(ctx, "tags").Result()
-
-// Pub/Sub
-pubsub := redis.Subscribe(ctx, "channel")
-
-// Транзакции
-redis.Watch(ctx, func(tx *redis.Tx) error {
-    // ...
-}, "key")
-
-// Скрипты
-script := redis.NewScript("return redis.call('set', KEYS[1], ARGV[1])")
-script.Run(ctx, redis, []string{"key"}, "value").Result()
+# С дополнительными параметрами
+--cache.redis.dsn=redis://localhost:6379/0?dial_timeout=5s&pool_size=20&max_retries=3
 ```
 
-### 🔌 Два способа использования
-
-#### Как самостоятельный Redis-клиент:
-
-```go
-type Service struct {
-    redis redis.Cmdable  // интерфейс со всеми командами
-    // или
-    client *redis.Client  // прямой доступ к клиенту
-}
-```
-
-#### Как драйвер для централизованной системы кэширования:
+## Интеграция с [Compogo Cache](https://github.com/Compogo/cache)
 
 ```go
 import (
-    "github.com/Compogo/cache"
     "github.com/Compogo/redis/registration"
 )
 
-app := compogo.NewApp("myapp",
-    cache.Component,
-    redis.Component,
-    registration.Component,  // регистрирует "redis" драйвер
-)
+func main() {
+    app := compogo.NewApp("myapp",
+        compogo.WithComponents(&registration.Component),
+    )
+    // Теперь cache.NewCache() использует Redis
+}
+```
 
-// Теперь можно использовать через cache.CacheInterface[[]byte]
-// с флагом --cache.driver=redis
+## Зависимости
+
+* [Compogo](https://github.com/Compogo/compogo) — основной фреймворк
+* [go-redis](https://github.com/redis/go-redis) — клиент Redis
+
+## Лицензия
+
+```plantuml
+MIT License
+
+Copyright (c) 2026 Compogo
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
 ```

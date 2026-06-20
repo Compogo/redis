@@ -1,31 +1,23 @@
 package redis
 
 import (
-	"fmt"
-
-	"github.com/Compogo/compogo/logger"
+	"github.com/Compogo/compogo"
 	"github.com/redis/go-redis/v9"
 )
 
-// NewCache creates a new Redis client instance.
-// It initializes the underlying go-redis client with the configured host, port,
-// authentication credentials, and timeout settings.
-//
-// The informer is used to log the configuration for debugging purposes.
-// Returns a configured *redis.Client ready for use.
-func NewCache(config *Config, informer logger.Informer) *redis.Client {
-	informer.Infof("[cache.redis] host - %s, port - %d", config.Host, config.Port)
-	informer.Infof("[cache.redis] readTimeout - %s", config.ReadTimeout)
-	informer.Infof("[cache.redis] writeTimeout - %s", config.WriteTimeout)
-	informer.Infof("[cache.redis] connectTimeout - %s", config.ConnectTimeout)
+// NewCache создаёт новый клиент Redis из DSN.
+// Парсит DSN и создаёт клиент с соответствующими настройками.
+func NewCache(config *Config, logger compogo.Logger) (*redis.Client, error) {
+	options, err := redis.ParseURL(config.DSN)
+	if err != nil {
+		return nil, err
+	}
 
-	return redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%d", config.Host, config.Port),
-		Username: config.User,
-		Password: config.Password,
+	logger = logger.GetLogger("cache").GetLogger("redis")
+	logger.Infof("host - %s", options.Addr)
+	logger.Infof("readTimeout - %s", options.ReadTimeout)
+	logger.Infof("writeTimeout - %s", options.WriteTimeout)
+	logger.Infof("poolTimeout - %s", options.PoolTimeout)
 
-		ReadTimeout:  config.ReadTimeout,
-		WriteTimeout: config.WriteTimeout,
-		PoolTimeout:  config.ConnectTimeout,
-	})
+	return redis.NewClient(options), nil
 }

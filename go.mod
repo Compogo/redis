@@ -3,16 +3,16 @@ module github.com/Compogo/redis
 go 1.26.1
 
 require (
-	github.com/Compogo/cache v0.0.3
-	github.com/Compogo/compogo v0.0.33
+	github.com/Compogo/cache v1.0.0-rc1
+	github.com/Compogo/compogo v1.0.0-rc1
 	github.com/eko/gocache/lib/v4 v4.2.3
 	github.com/eko/gocache/store/redis/v4 v4.2.6
-	github.com/redis/go-redis/v9 v9.19.0
+	github.com/redis/go-redis/v9 v9.20.1
 )
 
 require (
-	github.com/Compogo/tools v0.0.1 // indirect
-	github.com/Compogo/types v0.0.15 // indirect
+	github.com/Compogo/tools v1.0.0 // indirect
+	github.com/Compogo/types v1.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect

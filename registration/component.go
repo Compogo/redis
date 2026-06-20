@@ -2,37 +2,34 @@ package registration
 
 import (
 	"github.com/Compogo/cache"
-	"github.com/Compogo/compogo/component"
-	"github.com/Compogo/compogo/container"
+	"github.com/Compogo/compogo"
 	"github.com/Compogo/redis"
 	"github.com/eko/gocache/lib/v4/store"
 	redisStore "github.com/eko/gocache/store/redis/v4"
 	redisClient "github.com/redis/go-redis/v9"
 )
 
-// Component is a ready-to-use Compogo component that registers the Redis
-// cache driver with the central cache system.
+// Component — компонент регистрации Redis драйвера для gocache.
+// Регистрирует драйвер "redis" в системе кэширования.
 //
-// It depends on redis.Component to ensure the underlying Redis client
-// is initialized. The actual registration happens in init(), which is safe because
-// cache.Registration only stores factory functions without requiring runtime state.
-var Component = &component.Component{
-	Dependencies: component.Components{
-		redis.Component,
+// После подключения этого компонента, пакет cache сможет использовать
+// Redis как бекенд для кэширования.
+//
+// Пример:
+//
+//	app.AddComponents(
+//	    &registration.Component, // регистрация драйвера для cache
+//	)
+var Component = compogo.Component{
+	Dependencies: compogo.Components{
+		&redis.Component,
 	},
 }
 
-// init registers the "redis" cache driver with the central cache system.
-// The registration happens at program startup, independent of component lifecycle.
-//
-// The factory function receives a container and:
-//   - Extracts the cache configuration (*cache.Config) and the Redis client
-//   - Creates a redis.Store (compatible with store.StoreInterface)
-//   - Returns it to the cache system for wrapping with metrics
-//
-// This driver can be selected with --cache.driver=redis.
+// Регистрация драйвера "redis" в системе cache.
+// Использует redis.Cmdable как источник данных.
 func init() {
-	cache.Registration("redis", func(container container.Container) (store.StoreInterface, error) {
+	cache.Registration("redis", func(container compogo.Container) (store.StoreInterface, error) {
 		var cacheStore store.StoreInterface
 		var err error
 

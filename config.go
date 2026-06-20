@@ -1,73 +1,48 @@
 package redis
 
 import (
-	"time"
-
-	"github.com/Compogo/compogo/configurator"
+	"github.com/Compogo/compogo"
 )
 
 const (
-	HostFieldName           = "cache.redis.host"
-	PortFieldName           = "cache.redis.port"
-	UserFieldName           = "cache.redis.auth.user"
-	PasswordFieldName       = "cache.redis.auth.password"
-	ReadTimeoutFieldName    = "cache.redis.timeout.read"
-	WriteTimeoutFieldName   = "cache.redis.timeout.write"
-	ConnectTimeoutFieldName = "cache.redis.timeout.connect"
-
-	HostDefault           = "localhost"
-	PortDefault           = uint16(6379)
-	ReadTimeoutDefault    = 300 * time.Millisecond
-	WriteTimeoutDefault   = 300 * time.Millisecond
-	ConnectTimeoutDefault = 500 * time.Millisecond
+	// DsnFieldName — имя поля для DSN (Data Source Name) строки подключения.
+	DsnFieldName = "cache.redis.dsn"
 )
 
+// DsnDefault — DSN по умолчанию для локальной разработки.
+// Формат: redis://[user:password@]host:port[/db][?options]
+var DsnDefault = "redis://localhost:6789/0?dial_timeout=3&read_timeout=6s&max_retries=2"
+
+// Config содержит конфигурацию Redis.
+// Использует DSN строку для настройки всех параметров подключения.
+//
+// Поддерживаемые параметры в DSN:
+//   - dial_timeout — таймаут подключения
+//   - read_timeout — таймаут чтения
+//   - write_timeout — таймаут записи
+//   - pool_size — размер пула соединений
+//   - max_retries — максимальное количество попыток
+//   - и другие параметры библиотеки go-redis
+//
+// Примеры DSN:
+//   - redis://localhost:6379/0
+//   - redis://user:pass@redis-cluster:6379/0?dial_timeout=5s
+//   - redis://localhost:6379?pool_size=10&max_retries=3
 type Config struct {
-	Host           string
-	Port           uint16
-	User           string
-	Password       string
-	ReadTimeout    time.Duration
-	WriteTimeout   time.Duration
-	ConnectTimeout time.Duration
+	DSN string
 }
 
+// NewConfig создаёт новую конфигурацию.
 func NewConfig() *Config {
 	return &Config{}
 }
 
-func Configuration(config *Config, configurator configurator.Configurator) *Config {
-	if config.Host == "" || config.Host == HostDefault {
-		configurator.SetDefault(HostFieldName, HostDefault)
-		config.Host = configurator.GetString(HostFieldName)
-	}
-
-	if config.Port == 0 || config.Port == PortDefault {
-		configurator.SetDefault(PortFieldName, PortDefault)
-		config.Port = configurator.GetUint16(PortFieldName)
-	}
-
-	if config.ReadTimeout == 0 || config.ReadTimeout == ReadTimeoutDefault {
-		configurator.SetDefault(ReadTimeoutFieldName, ReadTimeoutDefault)
-		config.ReadTimeout = configurator.GetDuration(ReadTimeoutFieldName)
-	}
-
-	if config.WriteTimeout == 0 || config.WriteTimeout == WriteTimeoutDefault {
-		configurator.SetDefault(WriteTimeoutFieldName, WriteTimeoutDefault)
-		config.WriteTimeout = configurator.GetDuration(WriteTimeoutFieldName)
-	}
-
-	if config.ConnectTimeout == 0 || config.ConnectTimeout == ConnectTimeoutDefault {
-		configurator.SetDefault(ConnectTimeoutFieldName, ConnectTimeoutDefault)
-		config.ConnectTimeout = configurator.GetDuration(ConnectTimeoutFieldName)
-	}
-
-	if config.User == "" {
-		config.User = configurator.GetString(UserFieldName)
-	}
-
-	if config.Password == "" {
-		config.Password = configurator.GetString(PasswordFieldName)
+// Configuration загружает конфигурацию из Configurator.
+// Если DSN не задан, устанавливается значение по умолчанию.
+func Configuration(config *Config, configurator compogo.Configurator) *Config {
+	if config.DSN == "" || config.DSN == DsnDefault {
+		configurator.SetDefault(DsnFieldName, DsnDefault)
+		config.DSN = configurator.GetString(DsnFieldName)
 	}
 
 	return config
